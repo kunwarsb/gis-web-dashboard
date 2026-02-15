@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Leaflet Map – Counties + CSV Points</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+<script>
+  // -----------------------------
+  // 1. Initialize map
+  // -----------------------------
+  var map = L.map('map').setView([37.8, -96], 4);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+  }).addTo(map);
+
+  var countyLayer = L.layerGroup().addTo(map);
+  var pointsLayer = L.layerGroup().addTo(map);
+
+  // -----------------------------
+  // 2. Load county boundaries (GeoJSON)
+  // -----------------------------
+  fetch("layerWGS84.geojson")
+    .then(res => res.json())
+    .then(data => {
+      var gj = L.geoJSON(data, {
+        style: {
+          color: "blue",
+          weight: 1,
+          fillOpacity: 0
+        }
+      }).addTo(countyLayer);
+
+      // Fit map to county boundaries
+      try {
+        map.fitBounds(gj.getBounds());
+      } catch (e) {
+        console.log("Could not fit bounds:", e);
+      }
+    })
+    .catch(err => console.error("GeoJSON load error:", err));
+
+  // -----------------------------
+  // 3. Load CSV points
+  // -----------------------------
+  Papa.parse("sites.csv", {
+    download: true,
+    header: true,
+    dynamicTyping: true,
+    complete: function(results) {
+      results.data.forEach(row => {
+        let lat = row.lat || row.latitude || row.Lat || row.Latitude;
+        let lon = row.lon || row.lng || row.longitude || row.Lon || row.Longitude;
+
+        if (lat && lon && !isNaN(lat) && !isNaN(lon)) {
+          L.circleMarker([lat, lon], {
+            radius: 5,
+            color: "red",
+            fillColor: "red",
+            fillOpacity: 0.8
+          })
+          .bindPopup("Site: " + (row.site_id || "Unknown"))
+          .addTo(pointsLayer);
+        }
+      });
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Test County" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-80, 35],
+            [-80, 36],
+            [-79, 36],
+            [-79, 35],
+            [-80, 35]
+          ]
+        ]
+      }
+    }
+  ]
+}
