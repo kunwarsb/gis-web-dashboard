@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Interactive Leaflet Map</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { width: 100%; height: 100%; }
+
+    .legend {
+      background: white;
+      padding: 8px 12px;
+      line-height: 18px;
+      color: #333;
+      border-radius: 4px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    }
+    .legend-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .legend-color-box {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+      border: 1px solid #999;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<script>
+  // -----------------------------
+  // 1. Initialize map
+  // -----------------------------
+  var map = L.map('map').setView([37.8, -96], 4);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+  }).addTo(map);
+
+  var countyLayer = L.layerGroup();
+  var pointsLayer = L.layerGroup();
+
+  // -----------------------------
+  // 2. Load county boundaries
+  // -----------------------------
+  fetch("layerWGS84.geojson")
+    .then(res => res.json())
+    .then(data => {
+      var gj = L.geoJSON(data, {
+        style: {
+          color: "#0055ff",
+          weight: 1,
+          fillOpacity: 0
+        },
+        onEachFeature: function(feature, layer) {
+          layer.on({
+            mouseover: function(e) {
+              e.target.setStyle({ weight: 3, color: "#0000aa" });
+            },
+            mouseout: function(e) {
+              gj.resetStyle(e.target);
+            }
+          });
+        }
+      }).addTo(countyLayer);
+
+      map.fitBounds(gj.getBounds());
+    });
+
+  // -----------------------------
+  // 3. Load CSV points
+  // -----------------------------
+  Papa.parse("sites.csv", {
+    download: true,
+    header: true,
+    dynamicTyping: true,
+    complete: function(results) {
+      results.data.forEach(row => {
+        let lat = row.lat || row.latitude || row.Lat || row.Latitude;
+        let lon = row.lon || row.lng || row.longitude || row.Lon || row.Longitude;
+
+        if (lat && lon && !isNaN(lat) && !isNaN(lon)) {
+          var marker = L.circleMarker([lat, lon], {
+            radius: 6,
+            color: "#cc0000",
+            fillColor: "#ff3333",
+            fillOpacity: 0.9
+          })
+          .bindPopup("Site: " + (row.site_id || "Unknown"))
+          .on("mouseover", function() { this.openPopup(); })
+          .on("mouseout", function() { this.closePopup(); });
+
+          marker.addTo(pointsLayer);
+        }
+      });
+    }
+  });
+
+  // -----------------------------
+  // 4. Layer Toggle Control
+  // -----------------------------
+  var overlays = {
+    "County Boundaries": countyLayer,
+    "Monitoring Sites": pointsLayer
+  };
+  L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+
+  // -----------------------------
+  // 5. Search Box
+  // -----------------------------
+  L.Control.geocoder({
+    defaultMarkGeocode: true
+  }).addTo(map);
+
+  // -----------------------------
+  // 6. Legend
+  // -----------------------------
+  var legend = L.control({ position: "bottomright" });
+
+  legend.onAdd = function() {
+    var div = L.DomUtil.create("div", "legend");
+    div.innerHTML += "<div class='legend-title'>Legend</div>";
+    div.innerHTML += "<div><span class='legend-color-box' style='background:#0055ff'></span>County Boundaries</div>";
+    div.innerHTML += "<div><span class='legend-color-box' style='background:#ff3333'></span>Monitoring Sites</div>";
+    return div;
+  };
+
+  legend.addTo(map);
+
+</script>
+
+</body>
+</html>
